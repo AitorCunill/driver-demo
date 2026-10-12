@@ -1,0 +1,12 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Actualizar IntelliSense del kernel",
+            "type": "process",
+            "command": "make",
+            "args": ["-C", "${workspaceFolder}/driver", "intellisense"],
+            "problemMatcher": ["$gcc"]
+        }
+    ]
+}
