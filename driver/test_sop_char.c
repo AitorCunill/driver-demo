@@ -130,17 +130,23 @@ int main(void)
 	status = 0;
 
 cleanup:
-	if (mapping != MAP_FAILED)
-		munmap(mapping, (size_t)page_size * 2);
-	if (count_fd2 >= 0)
+    if (mapping != MAP_FAILED)
+        munmap(mapping, (size_t)page_size * 2);
+
+    if (count_fd2 >= 0)
         close(count_fd2);
+
     if (count_fd1 >= 0)
         close(count_fd1);
-	if (other >= 0)
-		close(other);
-	if (reader >= 0)
-		close(reader);
-	if (writer >= 0)
-		close(writer);
-	return status;
+
+    if (other >= 0)
+        close(other);
+
+    if (reader >= 0)
+        close(reader);
+
+    if (writer >= 0)
+        close(writer);
+
+    return status;
 }
