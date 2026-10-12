@@ -27,10 +27,14 @@ static DEFINE_MUTEX(buffer_lock);
 /* Contador acumulado, no cantidad de descriptores actualmente abiertos. */
 static atomic_t total_opens = ATOMIC_INIT(0);
 
+static atomic_t active_opens = ATOMIC_INIT(0);
+
 static int sop_open(struct inode *inode, struct file *file)
 {
 	/* La operación atómica evita perder incrementos entre aperturas simultáneas. */
 	int opens = atomic_inc_return(&total_opens);
+
+	atomic_inc(&active_opens);
 
 	pr_info(SOP_NAME ": open (aperturas acumuladas=%d)\n", opens);
 	return 0;
@@ -39,6 +43,8 @@ static int sop_open(struct inode *inode, struct file *file)
 /* Se invoca al liberar la última referencia a esta apertura (struct file). */
 static int sop_release(struct inode *inode, struct file *file)
 {
+	atomic_dec(&active_opens);
+
 	pr_debug(SOP_NAME ": release\n");
 	return 0;
 }
@@ -117,6 +123,7 @@ static long sop_ioctl(struct file *file, unsigned int command,
 		      unsigned long argument)
 {
 	unsigned int length;
+	unsigned int open_count;
 
 	/* Rechaza comandos que no pertenecen a esta interfaz. */
 	if (_IOC_TYPE(command) != SOP_IOC_MAGIC)
@@ -145,6 +152,15 @@ static long sop_ioctl(struct file *file, unsigned int command,
 		/* Otras aperturas independientes conservan su posición. */
 		file->f_pos = 0;
 		mutex_unlock(&buffer_lock);
+		return 0;
+		
+	case SOP_IOC_GET_OPEN_COUNT:
+		open_count = (unsigned int)atomic_read(&active_opens);
+
+		if (copy_to_user((unsigned int __user *)argument,
+						&open_count, sizeof(open_count)))
+			return -EFAULT;
+
 		return 0;
 
 	default:

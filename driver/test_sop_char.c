@@ -25,6 +25,8 @@ int main(void)
 	char payload[CAPACITY + 1];
 	char buffer[CAPACITY];
 	unsigned int length;
+	unsigned int open_count;
+	int count_fd1 = -1, count_fd2 = -1;
 	int writer = -1, reader = -1, other = -1;
 	int status = 1;
 	long page_size = sysconf(_SC_PAGESIZE);
@@ -32,6 +34,42 @@ int main(void)
 
 	memset(payload, 'A', sizeof(payload));
 	CHECK(page_size >= CAPACITY);
+	    /* Prueba del contador de aperturas activas. */
+    count_fd1 = open(DEVICE, O_RDONLY);
+    CHECK(count_fd1 >= 0);
+
+    CHECK(ioctl(count_fd1, SOP_IOC_GET_OPEN_COUNT, &open_count) == 0);
+    CHECK(open_count == 1);
+
+    count_fd2 = open(DEVICE, O_RDONLY);
+    CHECK(count_fd2 >= 0);
+
+    CHECK(ioctl(count_fd1, SOP_IOC_GET_OPEN_COUNT, &open_count) == 0);
+    CHECK(open_count == 2);
+
+    CHECK(close(count_fd2) == 0);
+    count_fd2 = -1;
+
+    CHECK(ioctl(count_fd1, SOP_IOC_GET_OPEN_COUNT, &open_count) == 0);
+    CHECK(open_count == 1);
+
+    CHECK(ioctl(count_fd1, SOP_IOC_GET_OPEN_COUNT, &open_count) == 0);
+    CHECK(open_count == 1);
+
+    CHECK(close(count_fd1) == 0);
+    count_fd1 = -1;
+
+    count_fd1 = open(DEVICE, O_RDONLY);
+    CHECK(count_fd1 >= 0);
+
+    CHECK(ioctl(count_fd1, SOP_IOC_GET_OPEN_COUNT, &open_count) == 0);
+    CHECK(open_count == 1);
+
+    CHECK(close(count_fd1) == 0);
+    count_fd1 = -1;
+
+    puts("OK: contador de aperturas activas (1, 2, 1, 1, 1)");
+
 	writer = open(DEVICE, O_RDWR);
 	CHECK(writer >= 0);
 	CHECK(ioctl(writer, SOP_IOC_CLEAR) == 0);
@@ -94,6 +132,10 @@ int main(void)
 cleanup:
 	if (mapping != MAP_FAILED)
 		munmap(mapping, (size_t)page_size * 2);
+	if (count_fd2 >= 0)
+        close(count_fd2);
+    if (count_fd1 >= 0)
+        close(count_fd1);
 	if (other >= 0)
 		close(other);
 	if (reader >= 0)
